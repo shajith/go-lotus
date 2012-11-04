@@ -42,12 +42,15 @@ type Ticket struct {
 	assignee    *User
 }
 
-func (c *Client) Assignee(t Ticket) (user *User, err error) {
+func (c *Client) Assignee(t *Ticket) (user *User, err error) {
 	if t.assignee != nil {
 		user = t.assignee
 	} else {
 		if t.AssigneeId != 0 {
 			user, err = c.getUser(fmt.Sprintf("%d", t.AssigneeId))
+			if err == nil {
+				t.assignee = user
+			}
 		} else {
 			user, err = nil, nil
 		}
@@ -97,7 +100,7 @@ func (c *Client) getViewResults(url string) (data *ViewResult, err error) {
 
 func (c *Client) getUser(id string) (user *User, err error) {
 	var data = make(map[string]User)
-	body, err := c.perform("GET", "/users/me.json")
+	body, err := c.perform("GET", fmt.Sprintf("/users/%s.json", id))
 
 	if err == nil {
 		json.Unmarshal(body, &data)
@@ -109,6 +112,7 @@ func (c *Client) getUser(id string) (user *User, err error) {
 }
 
 func (c *Client) perform(method string, path string) (body []byte, err error) {
+
 	var httpClient http.Client
 	var url = fmt.Sprintf("https://%s.zendesk.com/api/v2%s", c.Subdomain, path)
 	req, err := http.NewRequest(method, url, nil)
