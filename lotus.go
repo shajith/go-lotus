@@ -6,22 +6,8 @@ import "io/ioutil"
 import "encoding/json"
 import "errors"
 
-func Hello(name string) string {
-	return fmt.Sprintf("Hello %s", name);
-}
-
-func fetchBytes(url string) []byte {
-	resp, _ := http.Get(url)
-	defer resp.Body.Close()
-	body, _ := ioutil.ReadAll(resp.Body)
-  return body
-}
-
-func Fetch(url string) string {
-	return fmt.Sprintf("%s", fetchBytes(url))
-}
-
 type Client struct {
+	Subdomain string
   User string
 	Password string
 }
@@ -70,41 +56,40 @@ func (c *Client) ExecuteViewNextPage(r *ViewResult) (result *ViewResult, err err
 }
 
 func (c *Client) ExecuteView(v View) (*ViewResult, error) {
-	var url = fmt.Sprintf("https://shajith.zendesk.com/api/v2/views/%d/tickets.json", v.Id);
+	var url = fmt.Sprintf("/views/%d/tickets.json", v.Id);
 	return c.getViewResults(url);
 }
 
-func (c *Client) getViewResults(url string) (data *ViewResult, err error) {
-	body, err := perform("GET", url, c.User, c.Password)
+func (c *Client) getViewResults(path string) (data *ViewResult, err error) {
+	body, err := c.perform("GET", path)
 	json.Unmarshal(body, &data)
 	return data, err;
 }
 
 func (c *Client) Me() User {
 	var data = make(map[string]User)
-	var body, _ = perform("GET", "https://shajith.zendesk.com/api/v2/users/me.json", c.User, c.Password)
+	var body, _ = c.perform("GET", "/users/me.json")
 	json.Unmarshal(body, &data)
   return data["user"]
 }
 
 func (c *Client) Views() []View {
 	var data = make(map[string][]View)
-	var body, _ = perform("GET", "https://shajith.zendesk.com/api/v2/views.json", c.User, c.Password)
+	var body, _ = c.perform("GET", "/views.json")
 	json.Unmarshal(body, &data)
   return data["views"]
 }
 
-func perform(method string, url string, user string, password string) (body []byte, err error){
+func (c *Client) perform(method string, path string) (body []byte, err error){
 	var httpClient http.Client
-
+	var url = fmt.Sprintf("https://%s.zendesk.com/api/v2%s", c.Subdomain, path)
 	req, err := http.NewRequest(method, url, nil)
-	req.SetBasicAuth(user, password)
+	req.SetBasicAuth(c.User, c.Password)
 	resp, err := httpClient.Do(req)
-	if (err != nil) {
+	if err != nil {
 		body = nil
-  } else {
+	} else {
 		body, err = ioutil.ReadAll(resp.Body)
 	}
-
 	return
 }
